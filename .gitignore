@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+*.egg-info/
+wandb/
+\[2026_DS] 프로젝트 실습 강의 2.pptx

@@ -1,0 +1,11 @@
+# CPU 전용 torch 를 받도록 지정합니다.
+# 이 실습은 CPU 1스레드가 가장 빠르므로 CUDA 빌드가 필요 없습니다.
+# 이 줄이 없으면 pip 가 CUDA 패키지 15개(수 GB)를 함께 내려받습니다.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+gymnasium==1.1.1
+numpy==2.0.2
+stable_baselines3==2.7.0
+torch==2.8.0+cpu
+tensorboard==2.20.0
+setuptools==80.9.0

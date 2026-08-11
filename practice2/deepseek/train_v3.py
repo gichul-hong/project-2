@@ -5,7 +5,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 from custom_walker2d import CustomEnvWrapper
 from stable_baselines3.common.callbacks import CheckpointCallback
 
-N_ENVS = 4
+N_ENVS = 8
 
 def make_env():
     def _init():

@@ -15,9 +15,36 @@ parser.add_argument("--record", action="store_true", help="Enable recording with
 args = parser.parse_args()
 
 render_mode = "rgb_array" if args.record else "human"
-env = CustomEnvWrapper(render_mode=render_mode, bump_practice=args.bump_practice, bump_challenge=args.bump_challenge)
-model = PPO.load(args.model) if args.model is not None else None
-obs, _ = env.reset()
+raw_env = CustomEnvWrapper(render_mode=render_mode, bump_practice=args.bump_practice, bump_challenge=args.bump_challenge)
+
+is_vec_env = False
+if args.model is not None:
+    dir_name = os.path.dirname(args.model)
+    base_name = os.path.basename(args.model).replace(".zip", "")
+    vec_path = os.path.join(dir_name, f"{base_name.replace('walker_model_', 'walker_model_vecnormalize_')}.pkl")
+    if not os.path.exists(vec_path):
+        vec_path = os.path.join(dir_name, f"{base_name}_vecnormalize.pkl")
+    
+    if os.path.exists(vec_path):
+        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+        print(f"Loading VecNormalize stats from {vec_path}")
+        vec_env = DummyVecEnv([lambda: raw_env])
+        env = VecNormalize.load(vec_path, vec_env)
+        env.training = False
+        env.norm_reward = False
+        model = PPO.load(args.model, env=env)
+        is_vec_env = True
+    else:
+        env = raw_env
+        model = PPO.load(args.model)
+else:
+    env = raw_env
+    model = None
+
+if is_vec_env:
+    obs = env.reset()
+else:
+    obs, _ = env.reset()
 
 video_writer = None
 recording = False
@@ -31,10 +58,16 @@ while True:
         action, _ = model.predict(obs, deterministic=True)
     else:
         action = env.action_space.sample()
-    obs, reward, terminated, truncated, _ = env.step(action)
+    
+    if is_vec_env:
+        obs, reward, done, info = env.step(action)
+        terminated = done[0]
+        truncated = False
+    else:
+        obs, reward, terminated, truncated, _ = env.step(action)
 
     if args.record:
-        frame = env.render()
+        frame = raw_env.render()
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
         if recording:
@@ -67,4 +100,7 @@ while True:
             break
 
     if terminated or truncated:
-        obs, _ = env.reset()
+        if is_vec_env:
+            obs = env.reset()
+        else:
+            obs, _ = env.reset()

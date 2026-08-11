@@ -95,17 +95,14 @@ class CustomEnvWrapper(gym.Wrapper):
         return truncated
 
     def custom_observation(self, obs):
-        if self.bump_practice or self.bump_challenge:
-            bump1_x = 6.0
-            bump2_x = 10.0
-            dist_to_bump1 = max(0.0, bump1_x - obs[0])
-            dist_to_bump2 = max(0.0, bump2_x - obs[0])
-            passed_bump1 = 1.0 if obs[0] > bump1_x else 0.0
-            passed_bump2 = 1.0 if obs[0] > bump2_x else 0.0
-            height_dev = obs[1] - 1.25
-            extra = np.array([dist_to_bump1 / 6.0, dist_to_bump2 / 10.0, passed_bump1, passed_bump2, height_dev])
-            return np.concatenate([obs, extra])
-        return obs
+        torso_x = obs[0]
+        torso_z = obs[1]
+        extra = np.array([
+            (6.0 - torso_x) / 10.0,   # bump1_rel_x
+            (10.0 - torso_x) / 10.0,  # bump2_rel_x
+            torso_z - 1.25,           # torso_height_dev
+        ], dtype=np.float64)
+        return np.concatenate([obs, extra])
 
     def custom_reward(self, obs, original_reward):
         reward = original_reward

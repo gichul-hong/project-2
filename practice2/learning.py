@@ -46,7 +46,8 @@ if __name__ == "__main__":
     )
     
     # TODO: Modify if necessary
-    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", policy_kwargs=policy_kwargs, device="cpu", learning_rate=0.0001)
+    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", policy_kwargs=policy_kwargs, device="cpu",
+        learning_rate=0.0001, ent_coef=0.0, gamma=0.995)
     
     model.learn(total_timesteps=10000000000, callback=checkpoint_callback)
     model.save("ppo_custom_walker2d_parallel")

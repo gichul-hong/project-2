@@ -36,6 +36,8 @@ import os
 
 class CustomEnvWrapper(gym.Wrapper):
     def __init__(self, render_mode="human", bump_practice=False, bump_challenge=False):
+        self.bump_practice = bump_practice
+        self.bump_challenge = bump_challenge
         if bump_challenge:
             env = gym.make(
                 "Walker2d-v5",
@@ -61,12 +63,19 @@ class CustomEnvWrapper(gym.Wrapper):
         
         super().__init__(env)
         
+        self.prev_x = 0.0
+        self.passed_bump1 = False
+        self.passed_bump2 = False
+        
         ## change observation space according to the new observation
         obs, _ = self.reset()
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(len(obs),), dtype=np.float64)
         
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
+        self.prev_x = obs[0]
+        self.passed_bump1 = False
+        self.passed_bump2 = False
         custom_obs = self.custom_observation(obs)
         return custom_obs, info
 
@@ -74,25 +83,45 @@ class CustomEnvWrapper(gym.Wrapper):
         obs, reward, terminated, truncated, info = self.env.step(action)
         custom_obs = self.custom_observation(obs)
         custom_reward = self.custom_reward(obs, reward)
+        self.prev_x = obs[0]
         custom_terminated = self.custom_terminated(terminated, obs)
         custom_truncated = self.custom_truncated(truncated)
         return custom_obs, custom_reward, custom_terminated, custom_truncated, info
 
     def custom_terminated(self, terminated, obs):
-        # TODO: Implement your own termination condition
         return terminated
     
     def custom_truncated(self, truncated):
-        # TODO: Implement your own truncation condition
         return truncated
 
     def custom_observation(self, obs):
-        # TODO: Implement your own observation
+        if self.bump_practice or self.bump_challenge:
+            bump1_x = 6.0
+            bump2_x = 10.0
+            dist_to_bump1 = max(0.0, bump1_x - obs[0])
+            dist_to_bump2 = max(0.0, bump2_x - obs[0])
+            passed_bump1 = 1.0 if obs[0] > bump1_x else 0.0
+            passed_bump2 = 1.0 if obs[0] > bump2_x else 0.0
+            extra = np.array([dist_to_bump1 / 6.0, dist_to_bump2 / 10.0, passed_bump1, passed_bump2])
+            return np.concatenate([obs, extra])
         return obs
 
     def custom_reward(self, obs, original_reward):
-        # TODO: Implement your own reward
-        return original_reward
+        reward = original_reward
+        torso_angle_pen = -0.005 * abs(obs[2])
+        torso_vel_pen = -0.002 * abs(obs[11])
+        sym_pen = -0.003 * (abs(obs[3] - obs[6]) + abs(obs[4] - obs[7]) + abs(obs[5] - obs[8]))
+        reward += torso_angle_pen + torso_vel_pen + sym_pen
+        if self.bump_practice:
+            bump1_x = 6.0
+            bump2_x = 10.0
+            if not self.passed_bump1 and obs[0] > bump1_x:
+                reward += 50.0
+                self.passed_bump1 = True
+            if not self.passed_bump2 and obs[0] > bump2_x:
+                reward += 50.0
+                self.passed_bump2 = True
+        return reward
 
 ## Test Rendering
 if __name__ == "__main__":

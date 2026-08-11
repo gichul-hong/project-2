@@ -3,26 +3,27 @@
 > `practice2/custom_walker2d.py` + `learning.py` (PPO, SB3) 보상 설계 수정 이력.
 > 새로운 문제/수정이 생길 때마다 이 문서에 버전을 추가한다.
 
-## 새 세션 이어가기 가이드 (2026-08-12 00:54 기준)
+## 새 세션 이어가기 가이드 (2026-08-12 01:25 기준)
 
 ### 현재 상태
-- **v8.3 학습 진행 중**: 커리큘럼 1단계(c1: bump2 h=0.4, bump3 h=0.35), 16.8M 체크포인트에서 resume
-- 백그라운드 프로세스(persistent, Kilo 재시작에도 유지): `learning.py --bump_challenge --resume ... --xml asset/custom_walker2d_bumps_c1.xml`
-- 프로세스 확인: `ps aux | grep learning.py` / 중지: 해당 PID kill 후 `pkill -f multiprocessing.forkserver`
-- 렌더링 관찰 결과(중단 시점): 범프2(0.4) 어느 정도 통과, 범프3 미통과, 한발 점프 우세, 왼발목 미사용 → v8.1~v8.3 수정 직후라 효과 검증 전
+- **c1 졸업 (v8.3 성공)**: 22.2M 체크포인트를 c2에서 제로샷 평가 → bump2 10/10, bump3 9/10, mean_len 852, 통과 시 x=70+ 주행
+- **c2 학습 진행 중**: 22.2M에서 resume, `--xml asset/custom_walker2d_bumps_c2.xml` (h=0.5/0.45)
+- Kilo persistent 백그라운드 프로세스로 실행 중 (Kilo 재시작에도 유지). 확인: `ps aux | grep learning.py`
+- 다른 장소에서 이어갈 때: 학습이 중단된 상태면 아래로 재시작
+  ```bash
+  cd practice2
+  python -u learning.py --bump_challenge --resume checkpoints/bump_challenge/walker_model_<최신>_steps.zip --xml asset/custom_walker2d_bumps_c2.xml
+  ```
+- 체크포인트 정리됨(24MB): 2M 간격 + 22.2M(c1 최종) + 최신 2개만 보존. **이동 시 최소 필요: 최신 zip + 같은 스텝의 vecnormalize pkl + 코드/asset**
 
 ### 다음 할 일
-1. **20M+ 체크포인트 확인**: 도약 시도(v8.3), 양발목 사용(v8.2), 교대 보행(v8), 범프3 후 지속 전진(v8.1) 여부
+1. **24~25M 체크포인트 c2 평가**: 헤드리스 평가 스크립트로 bump3 9/10+ 확인 (또는 렌더링)
    ```bash
-   python render.py --model checkpoints/bump_challenge/walker_model_<steps>_steps --bump_challenge --xml asset/custom_walker2d_bumps_c1.xml
+   python render.py --model checkpoints/bump_challenge/walker_model_<steps>_steps --bump_challenge --xml asset/custom_walker2d_bumps_c2.xml
    ```
-2. **c1 승급 판정**: ep_len 800+ 및 범프3 통과 안정화 → c2로 승급
-   ```bash
-   # 학습 중지 후:
-   python -u learning.py --bump_challenge --resume checkpoints/bump_challenge/walker_model_<최신>_steps.zip --xml asset/custom_walker2d_bumps_c2.xml
-   ```
-3. **c2 → 원본(--xml 생략)** 같은 방식. 최종 검증은 `--xml` 없이 렌더링
-4. 한발 우세가 v8 이후에도 지속되면 → Tip #3 (actor 대칭 loss, SB3 PPO 서브클래싱) 구현
+2. **원본 승급**: c2에서 bump3 안정 통과 시 학습 중지 후 `--xml` 없이(원본 0.6/0.5) resume
+3. 최종 검증은 `--xml` 없이 렌더링
+4. 한발 우세가 지속되면 → Tip #3 (actor 대칭 loss, SB3 PPO 서브클래싱) 구현
 
 ### 지표 확인
 - TensorBoard: `logs/PPO_10` (이전 실패 런 로그는 삭제됨)
@@ -202,7 +203,7 @@ c1에서 범프2는 일부 통과하나 하강 착지 후 자세 붕괴로 범�
 - 13.8M 체크포인트에서 c1 XML로 resume
 
 ### 결과
-(진행 중 — 확인 후 갱신)
+- **성공 (22.2M, 2026-08-12 01:15)**: c1 헤드리스 평가(19.4M) bump3 8/10 → 22.2M을 c2에서 제로샷 bump2 10/10 / bump3 9/10 / mean_len 852. c1 졸업, 22.2M에서 c2로 승급 resume
 
 ### v8.1 핫픽스 (2026-08-12 00:45)
 - **증상**: 범프3 통과 후 서서히 멈춤

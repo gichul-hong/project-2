@@ -5,4 +5,6 @@ __pycache__/
 wandb/
 \[2026_DS] 프로젝트 실습 강의 2.pptx
 practice2/logs/*
+!practice2/logs/PPO_10
 practice2/checkpoints/*
+!practice2/checkpoints/bump_challenge

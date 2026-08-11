@@ -1,38 +1,33 @@
-import argparse
-
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+from custom_walker2d import CustomEnvWrapper
 from stable_baselines3.common.callbacks import CheckpointCallback
 
-from custom_walker2d import CustomEnvWrapper
+# TODO: Modify if necessary
+# Adjust based on available CPU cores (Windows CMD: wmic cpu get NumberOfLogicalProcessors)
+N_ENVS = 4
 
-# Number of parallel environments (SubprocVecEnv)
-N_ENVS = 8
-
-
-def make_env(bump_practice=False, bump_challenge=False):
+def make_env(bump_practice = False, bump_challenge=False):
     def _init():
-        return CustomEnvWrapper(render_mode=None,
-                                bump_practice=bump_practice,
-                                bump_challenge=bump_challenge)
+        env = CustomEnvWrapper(render_mode=None, bump_practice=bump_practice, bump_challenge=bump_challenge)
+        return env
     return _init
 
-
-# Policy/value networks with enough capacity for the richer observation.
+# TODO: Modify if necessary
 policy_kwargs = dict(
-    net_arch=[dict(pi=[256, 256], vf=[256, 256])],
-    log_std_init=-1.0,
+    net_arch=[dict(pi=[128, 64, 64], vf=[128, 64, 64])],
+    log_std_init=-1.0 
 )
 
+import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--bump_practice", action="store_true", help="Train on the 2-bump practice track (Task 3)")
-parser.add_argument("--bump_challenge", action="store_true", help="Train on the bump challenge track")
+parser.add_argument("--bump_practice", action="store_true", help="Enable bumping") # For bump practice
+parser.add_argument("--bump_challenge", action="store_true", help="Enable bumping") # For bump challenge
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    env = SubprocVecEnv([make_env(bump_practice=args.bump_practice,
-                                  bump_challenge=args.bump_challenge)
-                         for _ in range(N_ENVS)])
+    num_cpu = N_ENVS
+    env = SubprocVecEnv([make_env(bump_practice=args.bump_practice, bump_challenge=args.bump_challenge) for _ in range(num_cpu)])
     env = VecMonitor(env)
 
     if args.bump_practice:
@@ -47,22 +42,12 @@ if __name__ == "__main__":
     checkpoint_callback = CheckpointCallback(
         save_freq=10000,
         save_path=save_path,
-        name_prefix="walker_model",
+        name_prefix="walker_model"
     )
-
-    model = PPO(
-        "MlpPolicy",
-        env,
-        verbose=1,
-        tensorboard_log="./logs/",
-        policy_kwargs=policy_kwargs,
-        device="cpu",
-        learning_rate=3e-4,
-        n_steps=2048,
-        batch_size=64,
-        gamma=0.99,
-        ent_coef=0.005,  # raised from 0.001: extra early exploration to escape single-leg hopping
-    )
-
-    model.learn(total_timesteps=10_000_000_000, callback=checkpoint_callback)
+    
+    # TODO: Modify if necessary
+    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", policy_kwargs=policy_kwargs, device="cpu",
+        learning_rate=0.0001, ent_coef=0.0, gamma=0.995)
+    
+    model.learn(total_timesteps=10000000000, callback=checkpoint_callback)
     model.save("ppo_custom_walker2d_parallel")

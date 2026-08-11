@@ -4,3 +4,5 @@ __pycache__/
 *.egg-info/
 wandb/
 \[2026_DS] 프로젝트 실습 강의 2.pptx
+practice2/logs/*
+practice2/checkpoints/*

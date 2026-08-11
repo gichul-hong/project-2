@@ -130,7 +130,13 @@ class CustomEnvWrapper(gym.Wrapper):
         # ---------- base reward: O(1) scale ----------
         healthy_reward = 1.0
         ctrl_cost = float(np.sum(np.square(action)))
-        reward = healthy_reward + 1.5 * forward_vel - 0.001 * ctrl_cost
+        # NOTE: deviating slightly from the original 1.5x spec -> 1.2x.
+        # At 1.5x, raw forward speed dominated the gait/symmetry terms and
+        # the policy converged to single-leg hopping (high forward_vel,
+        # cheap to produce). 1.2x still strongly rewards progress (Task 1)
+        # while giving the alternation/symmetry/posture terms enough
+        # relative weight to shape a two-legged gait (Task 2).
+        reward = healthy_reward + 1.2 * forward_vel - 0.001 * ctrl_cost
 
         # ---------- Task 2: upright torso (anti-hopping: strong pitch damping) ----------
         # Hopping relies on torso recoil; heavier pitch/pitch-rate penalties

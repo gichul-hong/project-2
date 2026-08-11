@@ -3,27 +3,27 @@
 > `practice2/custom_walker2d.py` + `learning.py` (PPO, SB3) 보상 설계 수정 이력.
 > 새로운 문제/수정이 생길 때마다 이 문서에 버전을 추가한다.
 
-## 새 세션 이어가기 가이드 (2026-08-12 01:25 기준)
+## 새 세션 이어가기 가이드 (2026-08-12 01:45 기준)
 
 ### 현재 상태
-- **c1 졸업 (v8.3 성공)**: 22.2M 체크포인트를 c2에서 제로샷 평가 → bump2 10/10, bump3 9/10, mean_len 852, 통과 시 x=70+ 주행
-- **c2 학습 진행 중**: 22.2M에서 resume, `--xml asset/custom_walker2d_bumps_c2.xml` (h=0.5/0.45)
-- Kilo persistent 백그라운드 프로세스로 실행 중 (Kilo 재시작에도 유지). 확인: `ps aux | grep learning.py`
+- **c1 졸업 (22.2M)**: c2 제로샷 bump2 10/10, bump3 9/10
+- **c2 졸업 (29.2M)**: 27.4M 평가 — c2에서 10/10 전 에피소드 만주행(len 1000, x=72), **원본 XML 제로샷 bump3 8/10**
+- **최종 단계(원본 0.6/0.5) 학습 진행 중**: 29.2M에서 `--xml` 없이 resume
+- Kilo persistent 백그라운드 프로세스로 실행 중. 확인: `ps aux | grep learning.py`
 - 다른 장소에서 이어갈 때: 학습이 중단된 상태면 아래로 재시작
   ```bash
   cd practice2
-  python -u learning.py --bump_challenge --resume checkpoints/bump_challenge/walker_model_<최신>_steps.zip --xml asset/custom_walker2d_bumps_c2.xml
+  python -u learning.py --bump_challenge --resume checkpoints/bump_challenge/walker_model_<최신>_steps.zip
   ```
-- 체크포인트 정리됨(24MB): 2M 간격 + 22.2M(c1 최종) + 최신 2개만 보존. **이동 시 최소 필요: 최신 zip + 같은 스텝의 vecnormalize pkl + 코드/asset**
+- 체크포인트: 2M 간격 + 22.2M(c1 최종) + 최신만 보존. **이동 시 최소 필요: 최신 zip + 같은 스텝의 vecnormalize pkl + 코드/asset** (git에 push됨 — 떠나기 전 `git add practice2/checkpoints practice2/logs && git commit && git push`)
 
 ### 다음 할 일
-1. **24~25M 체크포인트 c2 평가**: 헤드리스 평가 스크립트로 bump3 9/10+ 확인 (또는 렌더링)
+1. **31~32M 체크포인트 원본 평가**: bump3 9/10+ 및 mean_len 900+ 확인
    ```bash
-   python render.py --model checkpoints/bump_challenge/walker_model_<steps>_steps --bump_challenge --xml asset/custom_walker2d_bumps_c2.xml
+   python render.py --model checkpoints/bump_challenge/walker_model_<steps>_steps --bump_challenge
    ```
-2. **원본 승급**: c2에서 bump3 안정 통과 시 학습 중지 후 `--xml` 없이(원본 0.6/0.5) resume
-3. 최종 검증은 `--xml` 없이 렌더링
-4. 한발 우세가 지속되면 → Tip #3 (actor 대칭 loss, SB3 PPO 서브클래싱) 구현
+2. 충족 시 학습 종료 = 과제 완료. 최종 렌더링/녹화 (`--record`)
+3. 한발 우세가 지속되면 → Tip #3 (actor 대칭 loss, SB3 PPO 서브클래싱) 구현
 
 ### 지표 확인
 - TensorBoard: `logs/PPO_10` (이전 실패 런 로그는 삭제됨)

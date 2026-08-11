@@ -1,34 +1,30 @@
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
-from custom_walker2d import CustomEnvWrapper
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNormalize
 from stable_baselines3.common.callbacks import CheckpointCallback
+from custom_walker2d import CustomEnvWrapper
 
-# TODO: Modify if necessary
-# Adjust based on available CPU cores (Windows CMD: wmic cpu get NumberOfLogicalProcessors)
-N_ENVS = 4
+N_ENVS = 10
 
-def make_env(bump_practice = False, bump_challenge=False):
+def make_env(bump_practice=False, bump_challenge=False):
     def _init():
-        env = CustomEnvWrapper(render_mode=None, bump_practice=bump_practice, bump_challenge=bump_challenge)
-        return env
+        return CustomEnvWrapper(render_mode=None, bump_practice=bump_practice, bump_challenge=bump_challenge)
     return _init
 
-# TODO: Modify if necessary
 policy_kwargs = dict(
-    net_arch=[dict(pi=[128, 64, 64], vf=[128, 64, 64])],
-    log_std_init=-1.0 
+    net_arch=[dict(pi=[256, 256], vf=[256, 256])],
+    log_std_init=-1.0,
 )
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--bump_practice", action="store_true", help="Enable bumping") # For bump practice
-parser.add_argument("--bump_challenge", action="store_true", help="Enable bumping") # For bump challenge
+parser.add_argument("--bump_practice", action="store_true")
+parser.add_argument("--bump_challenge", action="store_true")
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    num_cpu = N_ENVS
-    env = SubprocVecEnv([make_env(bump_practice=args.bump_practice, bump_challenge=args.bump_challenge) for _ in range(num_cpu)])
+    env = SubprocVecEnv([make_env(bump_practice=args.bump_practice, bump_challenge=args.bump_challenge) for _ in range(N_ENVS)])
     env = VecMonitor(env)
+    env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
 
     if args.bump_practice:
         folder_name = "bump_practice"
@@ -40,14 +36,15 @@ if __name__ == "__main__":
     save_path = f'./checkpoints/{folder_name}/'
 
     checkpoint_callback = CheckpointCallback(
-        save_freq=10000,
+        save_freq=20000,
         save_path=save_path,
-        name_prefix="walker_model"
+        name_prefix="walker_model",
+        save_vecnormalize=True,
     )
-    
-    # TODO: Modify if necessary
+
     model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", policy_kwargs=policy_kwargs, device="cpu",
-        learning_rate=0.0001, ent_coef=0.0, gamma=0.995)
-    
+        learning_rate=3e-4, n_steps=2048, batch_size=64, gamma=0.995, ent_coef=0.0)
+
     model.learn(total_timesteps=10000000000, callback=checkpoint_callback)
     model.save("ppo_custom_walker2d_parallel")
+    env.save(f"{save_path}vecnormalize_final.pkl")

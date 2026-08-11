@@ -1,6 +1,10 @@
 import numpy as np
 import gymnasium as gym
 import os
+from collections import deque
+
+# 위상 시프트 대칭 보상의 반주기 (스텝 단위, dt=0.02s -> 15스텝 = 0.3s)
+GAIT_HALF_PERIOD = 15
 
 BUMP_CONFIGS = {
     "bump_practice": [
@@ -16,7 +20,7 @@ BUMP_CONFIGS = {
 
 
 class CustomEnvWrapper(gym.Wrapper):
-    def __init__(self, render_mode="human", bump_practice=False, bump_challenge=False):
+    def __init__(self, render_mode="human", bump_practice=False, bump_challenge=False, xml_file=None):
         self.bump_practice = bump_practice
         self.bump_challenge = bump_challenge
         self.is_bump_env = bump_practice or bump_challenge
@@ -24,9 +28,12 @@ class CustomEnvWrapper(gym.Wrapper):
 
         if bump_challenge:
             self.bumps = BUMP_CONFIGS["bump_challenge"]
+            # xml_file로 커리큘럼 단계(낮은 범프) XML을 지정할 수 있음.
+            # 범프 위치/개수는 동일해야 함 (관측 차원 유지)
+            xml = xml_file or (os.getcwd() + "/asset/custom_walker2d_bumps.xml")
             env = gym.make(
                 "Walker2d-v5",
-                xml_file=os.getcwd() + "/asset/custom_walker2d_bumps.xml",
+                xml_file=xml,
                 render_mode=render_mode,
                 exclude_current_positions_from_observation=False,
                 frame_skip=10,
@@ -50,6 +57,12 @@ class CustomEnvWrapper(gym.Wrapper):
         super().__init__(env)
         self.prev_x = 0.0
         self.passed_bumps = []
+        # 마지막 범프 너머에도 전진 유인을 유지하기 위한 1회성 마일스톤
+        if self.bumps:
+            last_x = max(b["x"] for b in self.bumps)
+            self.goal_milestones = [(last_x + 3.0, 25.0), (last_x + 5.0, 50.0)]
+        else:
+            self.goal_milestones = []
 
         obs, _ = self.reset()
         self.observation_space = gym.spaces.Box(
@@ -60,8 +73,12 @@ class CustomEnvWrapper(gym.Wrapper):
         self.prev_x = obs[0]
         self.passed_bumps = [False] * len(self.bumps)
         self.face_bonus = [False] * len(self.bumps)
+        self.jump_bonus = [False] * len(self.bumps)
+        self.height_bonus = [False] * len(self.bumps)
         self.max_x = obs[0]
         self.stall_steps = 0
+        self.right_leg_hist = deque(maxlen=GAIT_HALF_PERIOD)
+        self.goal_bonus = [False] * len(self.goal_milestones)
         return self.custom_observation(obs), info
 
     def step(self, action):
@@ -128,6 +145,11 @@ class CustomEnvWrapper(gym.Wrapper):
             for i, b in enumerate(self.bumps))
         if not near_unpassed_bump:
             reward -= 0.3 * (z_vel ** 2)
+        else:
+            # 범프 근처에서는 대칭 보상이 꺼지므로 한발 점프로 치우치기 쉬움.
+            # 양발목 동시 push-off 유도: 두 발목 토크 중 "작은 쪽"에 비례 보상
+            # -> 한쪽만 쓰면 0, 양쪽을 같이 써야 최대 +0.2
+            reward += 0.2 * min(abs(float(action[2])), abs(float(action[5])))
         reward -= 0.3 * (torso_angle ** 2)
         reward -= 0.05 * (torso_ang_vel ** 2)
 
@@ -137,8 +159,33 @@ class CustomEnvWrapper(gym.Wrapper):
         alternation = np.tanh(max(0.0, swing_product))
         reward += 0.3 * alternation
 
+        # 위상 시프트 대칭 보상 (강의 Tip: Solution #2):
+        # 오른다리 상태(각도 + 스케일된 각속도)를 반주기 전에 저장해두고,
+        # 왼다리가 그 상태를 재현하면 보상 -> 주기적 교대 gait 유도.
+        # 미통과 범프 근처에서는 비대칭 등반 동작이 필요하므로 끔.
+        # 전진 속도 게이트: 정지 자세도 자명하게 대칭이므로 (left_now = right_past)
+        # 걷고 있을 때만 지급 -> "서서 대칭 보너스 수확" exploit 차단.
+        right_state = np.array([obs[3], obs[4], obs[5],
+                                0.1 * obs[12], 0.1 * obs[13], 0.1 * obs[14]])
+        if len(self.right_leg_hist) == GAIT_HALF_PERIOD and not near_unpassed_bump:
+            left_state = np.array([obs[6], obs[7], obs[8],
+                                   0.1 * obs[15], 0.1 * obs[16], 0.1 * obs[17]])
+            l2 = float(np.sum((left_state - self.right_leg_hist[0]) ** 2))
+            speed_gate = np.clip(obs[9], 0.0, 1.0)  # 1 m/s 이상에서 만점
+            reward += 0.5 * np.exp(-2.0 * l2) * speed_gate
+        self.right_leg_hist.append(right_state)
+
         if self.is_bump_env:
             for i, b in enumerate(self.bumps):
+                # 명시적 점프 유도 (1회성이라 제자리 점프 농사 불가):
+                # 접근 구간에서 (1) 도약 임펄스, (2) 몸 띄우기를 단계적으로 보상
+                if not self.passed_bumps[i] and b["x"] - 2.0 <= obs[0] <= b["x"] + 0.7:
+                    if not self.jump_bonus[i] and z_vel > 1.5:
+                        reward += 10.0  # 도약 임펄스 (상승 속도 1.5 m/s)
+                        self.jump_bonus[i] = True
+                    if not self.height_bonus[i] and torso_z > 1.55:
+                        reward += 15.0  # 체공/등반 높이 (평지 보행으론 불가)
+                        self.height_bonus[i] = True
                 # 범프 전면 도달 마일스톤(1회성 +15): "거의 넘음"과 "접근 못함"
                 # 사이에 보상 기울기를 만들어 등반 시도를 유도.
                 # x 기준 단조 마일스톤이라 진동으로 착취 불가.
@@ -148,6 +195,12 @@ class CustomEnvWrapper(gym.Wrapper):
                 if not self.passed_bumps[i] and obs[0] > b["x"]:
                     reward += 50.0
                     self.passed_bumps[i] = True
+
+            # 마지막 범프 너머 마일스톤: "범프3 통과 후 멈춤" 방지용 전진 유인
+            for i, (mx, bonus) in enumerate(self.goal_milestones):
+                if not self.goal_bonus[i] and obs[0] > mx:
+                    reward += bonus
+                    self.goal_bonus[i] = True
 
         return reward
 

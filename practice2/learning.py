@@ -5,9 +5,9 @@ from custom_walker2d import CustomEnvWrapper
 
 N_ENVS = 10
 
-def make_env(bump_practice=False, bump_challenge=False):
+def make_env(bump_practice=False, bump_challenge=False, xml_file=None):
     def _init():
-        return CustomEnvWrapper(render_mode=None, bump_practice=bump_practice, bump_challenge=bump_challenge)
+        return CustomEnvWrapper(render_mode=None, bump_practice=bump_practice, bump_challenge=bump_challenge, xml_file=xml_file)
     return _init
 
 policy_kwargs = dict(
@@ -21,10 +21,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--bump_practice", action="store_true")
 parser.add_argument("--bump_challenge", action="store_true")
 parser.add_argument("--resume", type=str, default=None, help="Checkpoint .zip to resume training from")
+parser.add_argument("--xml", type=str, default=None, help="Override bump XML (curriculum stage)")
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    env = SubprocVecEnv([make_env(bump_practice=args.bump_practice, bump_challenge=args.bump_challenge) for _ in range(N_ENVS)])
+    xml_file = os.path.abspath(args.xml) if args.xml else None
+    env = SubprocVecEnv([make_env(bump_practice=args.bump_practice, bump_challenge=args.bump_challenge, xml_file=xml_file) for _ in range(N_ENVS)])
     env = VecMonitor(env)
 
     vecnorm_path = None

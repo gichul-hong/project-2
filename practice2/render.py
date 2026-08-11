@@ -12,10 +12,12 @@ parser.add_argument("--model", type=str, default=None, help="Path to the saved m
 parser.add_argument("--bump_practice", action="store_true", help="Enable bumping") # For bump practice
 parser.add_argument("--bump_challenge", action="store_true", help="Enable bumping") # For bump challenge
 parser.add_argument("--record", action="store_true", help="Enable recording with R key toggle") # For recording
+parser.add_argument("--xml", type=str, default=None, help="Override bump XML (curriculum stage)")
 args = parser.parse_args()
 
 render_mode = "rgb_array" if args.record else "human"
-raw_env = CustomEnvWrapper(render_mode=render_mode, bump_practice=args.bump_practice, bump_challenge=args.bump_challenge)
+xml_file = os.path.abspath(args.xml) if args.xml else None
+raw_env = CustomEnvWrapper(render_mode=render_mode, bump_practice=args.bump_practice, bump_challenge=args.bump_challenge, xml_file=xml_file)
 
 is_vec_env = False
 if args.model is not None:

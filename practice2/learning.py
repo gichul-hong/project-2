@@ -1,5 +1,5 @@
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecMonitor
 from stable_baselines3.common.callbacks import CheckpointCallback
 from custom_walker2d import CustomEnvWrapper
 
@@ -26,7 +26,11 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
     xml_file = os.path.abspath(args.xml) if args.xml else None
-    env = SubprocVecEnv([make_env(bump_practice=args.bump_practice, bump_challenge=args.bump_challenge, xml_file=xml_file) for _ in range(N_ENVS)])
+    if args.bump_practice or args.bump_challenge:
+        VecEnv = DummyVecEnv
+    else:
+        VecEnv = SubprocVecEnv
+    env = VecEnv([make_env(bump_practice=args.bump_practice, bump_challenge=args.bump_challenge, xml_file=xml_file) for _ in range(N_ENVS)])
     env = VecMonitor(env)
 
     # v9.1: 관측 정규화는 custom_walker2d.py에 고정 통계로 내장됨 (공식 채점기가

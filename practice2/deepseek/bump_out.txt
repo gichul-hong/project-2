@@ -1,34 +1,57 @@
 Using cpu device
-Logging to ./logs/PPO_14
+Logging to ./logs/PPO_16
 ---------------------------------
 | rollout/           |          |
-|    ep_len_mean     | 9.25     |
-|    ep_rew_mean     | -29.1    |
+|    ep_len_mean     | 9.03     |
+|    ep_rew_mean     | -29.6    |
 | time/              |          |
-|    fps             | 1276     |
+|    fps             | 590      |
 |    iterations      | 1        |
-|    time_elapsed    | 16       |
+|    time_elapsed    | 34       |
 |    total_timesteps | 20480    |
 ---------------------------------
+Early stopping at step 2 due to reaching max kl: 0.06
+----------------------------------------
+| rollout/                |            |
+|    ep_len_mean          | 10.8       |
+|    ep_rew_mean          | -28.4      |
+| time/                   |            |
+|    fps                  | 497        |
+|    iterations           | 2          |
+|    time_elapsed         | 82         |
+|    total_timesteps      | 40960      |
+| train/                  |            |
+|    approx_kl            | 0.03141121 |
+|    clip_fraction        | 0.314      |
+|    clip_range           | 0.2        |
+|    entropy_loss         | -2.47      |
+|    explained_variance   | -0.0295    |
+|    learning_rate        | 0.0003     |
+|    loss                 | 15.5       |
+|    n_updates            | 3          |
+|    policy_gradient_loss | -0.0148    |
+|    std                  | 0.364      |
+|    value_loss           | 108        |
+----------------------------------------
 -----------------------------------------
 | rollout/                |             |
-|    ep_len_mean          | 10.8        |
-|    ep_rew_mean          | -27.8       |
+|    ep_len_mean          | 11.6        |
+|    ep_rew_mean          | -26.5       |
 | time/                   |             |
-|    fps                  | 1109        |
-|    iterations           | 2           |
-|    time_elapsed         | 36          |
-|    total_timesteps      | 40960       |
+|    fps                  | 412         |
+|    iterations           | 3           |
+|    time_elapsed         | 148         |
+|    total_timesteps      | 61440       |
 | train/                  |             |
-|    approx_kl            | 0.020109015 |
-|    clip_fraction        | 0.308       |
+|    approx_kl            | 0.020206537 |
+|    clip_fraction        | 0.277       |
 |    clip_range           | 0.2         |
-|    entropy_loss         | -2.48       |
-|    explained_variance   | -0.000577   |
+|    entropy_loss         | -2.39       |
+|    explained_variance   | 0.533       |
 |    learning_rate        | 0.0003      |
-|    loss                 | 12.4        |
-|    n_updates            | 10          |
-|    policy_gradient_loss | -0.0225     |
-|    std                  | 0.366       |
-|    value_loss           | 44.6        |
+|    loss                 | 10.3        |
+|    n_updates            | 13          |
+|    policy_gradient_loss | -0.0208     |
+|    std                  | 0.36        |
+|    value_loss           | 25.3        |
 -----------------------------------------

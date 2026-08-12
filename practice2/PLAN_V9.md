@@ -160,8 +160,8 @@ v8.3 구조 유지하되 아래만 변경:
 - [x] Phase 5: 커리큘럼 XML(c1/c2 신맵 생성, 구맵은 `_oldmap_c1/c2`로 백업) + **c1/c2는 zero-shot 졸업 기준 충족으로 스킵, 원본 XML에서 학습 시작**
 - [x] c1 졸업 (스텝: `0M` zero-shot 5/5)
 - [x] c2 졸업 (스텝: `0M` zero-shot 9/10)
-- [ ] 원본 bump8 8/10+ 달성 (진행 중)
-- [ ] Phase 6: TRAINING_HISTORY.md v9 기록
+- [x] 원본 bump8 8/10+ 달성 (1.6M 8/10 → **2.6M 18/20**, 3.6M 18/20, 4.6M 17/20)
+- [x] Phase 6: TRAINING_HISTORY.md v9 기록
 
 ## 리스크 / fallback
 

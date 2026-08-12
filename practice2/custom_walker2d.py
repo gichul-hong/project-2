@@ -11,6 +11,8 @@ GAIT_HALF_PERIOD = 15
 BIG_BUMP_HEIGHT = 0.2
 # 관측에 포함하는 "다음 범프" 개수 (맵 불변 관측)
 OBS_BUMP_K = 2
+# 종료 조건용 torso 높이 하한 (무릎 보행 차단). env healthy_z_range는 원본값 유지.
+MIN_TORSO_Z = 0.9
 
 
 class CustomEnvWrapper(gym.Wrapper):
@@ -30,7 +32,7 @@ class CustomEnvWrapper(gym.Wrapper):
                 render_mode=render_mode,
                 exclude_current_positions_from_observation=False,
                 frame_skip=10,
-                healthy_z_range=(0.9, 10.0))  # 무릎 보행(torso z~0.75-0.85) 차단
+                healthy_z_range=(0.5, 10.0))  # 스켈레톤 원본값 유지 (README 제약)
         elif bump_practice:
             env = gym.make(
                 "Walker2d-v5",
@@ -38,7 +40,7 @@ class CustomEnvWrapper(gym.Wrapper):
                 render_mode=render_mode,
                 exclude_current_positions_from_observation=False,
                 frame_skip=10,
-                healthy_z_range=(0.9, 10.0))  # 무릎 보행(torso z~0.75-0.85) 차단
+                healthy_z_range=(0.5, 10.0))  # 스켈레톤 원본값 유지 (README 제약)
         else:
             env = gym.make(
                 "Walker2d-v5",
@@ -120,6 +122,11 @@ class CustomEnvWrapper(gym.Wrapper):
         return custom_obs, custom_reward, terminated, truncated, info
 
     def custom_terminated(self, terminated, obs):
+        # 무릎 보행(torso z~0.75-0.85) 차단: 기존에는 env의 healthy_z_range로 막았으나
+        # README 제약("__init__의 환경 파라미터 수정 금지")에 맞춰 종료 조건으로 이전.
+        # env는 원본값 (0.5, 10.0)을 사용하고, 여기서 0.9 하한을 적용한다.
+        if obs[1] < MIN_TORSO_Z:
+            return True
         # 정지(standing) 국소최적 차단: 일정 시간 전진이 없으면 에피소드 종료.
         # terminated로 끊어야 가치 부트스트랩이 없어 "서서 버티기"의 기대가치가 낮아짐.
         if obs[0] > self.max_x + 0.05:

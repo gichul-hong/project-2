@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
 from custom_walker2d import CustomEnvWrapper
 from stable_baselines3.common.callbacks import CheckpointCallback
 
@@ -13,7 +13,7 @@ def make_env():
     return _init
 
 if __name__ == "__main__":
-    env = SubprocVecEnv([make_env() for _ in range(N_ENVS)])
+    env = DummyVecEnv([make_env() for _ in range(N_ENVS)])
     env = VecMonitor(env)
 
     save_path = './checkpoints/bump_practice/'

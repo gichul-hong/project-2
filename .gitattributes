@@ -1,0 +1,4 @@
+# 공식 채점 지형 XML은 md5로 검증된다 (evaluate.py OFFICIAL_XML_MD5).
+# core.autocrlf 로 줄바꿈이 바뀌면 md5가 달라져 "공식 지형이 아니다" 경고가 뜨므로
+# XML은 줄바꿈 변환 대상에서 제외한다.
+*.xml -text

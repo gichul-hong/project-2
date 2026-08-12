@@ -27,7 +27,6 @@ def main():
     obs, _ = env.reset(seed=ev.SEED)
     base = env.unwrapped
     prev_x = float(base.data.qpos[0])
-    stalled_since = None
     best_x = prev_x
     for step in range(1, ev.MAX_STEPS + 1):
         action, _ = model.predict(obs, deterministic=True)
@@ -45,13 +44,7 @@ def main():
         if not (ev.HEALTHY_Z_MIN < z < ev.HEALTHY_Z_MAX):
             print(f"!! fell at step {step}, x={x:.2f}, z={z:.2f}")
             break
-        if x < best_x - 1e-9 + 0.0:
-            pass
-        if x > best_x - 0.05:
-            stalled_since = step
-        elif stalled_since is not None and step - stalled_since > 150:
-            pass
-    print(f"best_x = {best_x:.2f}")
+    print(f"best_x = {best_x:.2f}  (= 채점 점수)")
     env.close()
 
 

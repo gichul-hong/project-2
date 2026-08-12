@@ -152,7 +152,7 @@ v8.3 구조 유지하되 아래만 변경:
 
 ## 진행 체크리스트
 
-- [ ] Phase 0: 백업 커밋 + 태그 + 구맵 체크포인트 이동 + 소스 체크포인트 선정: `______`
+- [x] Phase 0: 백업 커밋(f3ecaef) + 태그 `v8.3-oldmap-final` + 구맵 체크포인트 → `checkpoints/bump_challenge_oldmap/` + 소스 체크포인트 선정: `checkpoints/bump_challenge_oldmap/walker_model_32200000_steps.zip` (+ 동일 스텝 vecnormalize pkl 존재). 구맵 XML은 git 이력 a4a6e55에 보존됨
 - [ ] Phase 1: 범프 자동 파싱
 - [ ] Phase 2: 관측 25차원 (실측: `__`차원)
 - [ ] Phase 3: 보상 v9

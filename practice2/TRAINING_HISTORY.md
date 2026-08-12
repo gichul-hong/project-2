@@ -3,7 +3,57 @@
 > `practice2/custom_walker2d.py` + `learning.py` (PPO, SB3) 보상 설계 수정 이력.
 > 새로운 문제/수정이 생길 때마다 이 문서에 버전을 추가한다.
 
-## 새 세션 이어가기 가이드 (2026-08-12 01:45 기준)
+## 새 세션 이어가기 가이드 (2026-08-12 12:40 기준, v9)
+
+### 현재 상태 (v9 = 새 맵 8범프)
+- `asset/custom_walker2d_bumps.xml`이 **8범프 새 맵**으로 교체됨 (잔범프 6개 + bump2 h=0.5 + bump7 h=0.5 / bump8 h=1.0 계단)
+- 관측을 **맵 불변 25차원**으로 재설계하고, 구맵 정책(22차원, 32.2M)을 **가중치 수술**로 이식 → 새 맵 학습 진행 중
+- 평가 결과 (원본 XML, `eval_ckpt.py`, deterministic):
+
+| 체크포인트 | mean_len | bump2 | bump7 | bump8 | mean_max_x |
+|---|---|---|---|---|---|
+| surgery_0 (zero-shot) | 891 | 10/10 | 10/10 | 2~5/10 | 24 |
+| 1.6M | 826 | 10/10 | 10/10 | 8/10 | 50 |
+| **2.6M (최良)** | **940** | 18/20 | 18/20 | **18/20** | 57 |
+| 3.6M | 886 | 18/20 | 18/20 | 18/20 | 54 |
+| 4.6M | 845 | 19/20 | 19/20 | 17/20 | 49 |
+- **목표(bump8 8/10+, mean_len 800+) 달성**. 남은 실패 유형이 bump8 등반이 아니라 **에피소드 초반(x<4) 낙상**으로 바뀜 (bump2 통과율 = bump8 통과율)
+- 실행 환경: **conda `pjt-2`** (`C:\Users\삼성\.conda\envs\pjt-2\python.exe`, gymnasium 1.1.1 / SB3 2.7.0). `python`은 WindowsApps 스텁이라 동작하지 않음
+- 학습 재시작:
+  ```powershell
+  cd practice2
+  & C:\Users\삼성\.conda\envs\pjt-2\python.exe -u learning.py --bump_challenge --resume checkpoints/bump_challenge/walker_model_<최신>_steps.zip
+  ```
+
+### 다음 할 일
+1. 초반 낙상(2/20) 원인 확인 — `render.py`로 x=0~4 구간 관찰. bump1(x=2, h=0.05) 발 걸림 여부
+2. 개선 불필요 판단 시 학습 종료, 2.6M 체크포인트를 최종 제출본으로 사용 + 렌더링 녹화(`--record`)
+3. (옵션) 공중제비 트랙은 `custom_walker2d.py`를 건드리지 않고 별도 파일로 분리해서 진행
+
+### v9 변경 요약
+- **Phase 1**: `BUMP_CONFIGS` 하드코딩 제거 → `_parse_bumps()`가 XML geom(`bump*`)에서 x/half_width/height 파싱. 계단 판정(`base_height`: 직전 범프와 간격<1.0m이고 더 낮으면 그 상단 기준)
+- **Phase 2**: 관측 = base 18 + (다음 미도달 범프 K=2개 × [거리/10, 높이, 반폭]) + (torso_z-1.25) = **25차원**. 부족분은 `[2.0, 0, 0]` 패딩 → 맵/범프 개수 불변
+- **Phase 3**: 통과 판정을 범프 **뒷면**(x+half_width)으로 변경. 점프/높이 보너스는 h≥0.2 범프만, 임계값을 높이 상대값으로(`z_vel > min(1.5, 3*rel_h)`, `torso_z > height+1.05` → bump8은 2.05). 잔범프 pass는 +50→+10. z_vel 벌점 해제에 "h≥0.4 통과 직후 2m 착지 구간" 추가. stall 종료 300→500스텝
+- **Phase 4**: `surgery.py` — 구 첫 레이어(256×22)를 256×25로 열 매핑 이식(base 18열 그대로, 거리열 ×0.5로 /20→/10 스케일 보정, 높이·폭열 0, z offset열 이동), 나머지 레이어 전량 복사. **VecNormalize 통계도 같은 매핑으로 이식**(거리열 mean×2, var×4)한 것이 결정적 — 통계 미이식 시 zero-shot이 즉시 붕괴(len 24)했으나 이식 시 c1 5/5
+- **Phase 5**: 신맵 커리큘럼 c1/c2 생성했으나 **zero-shot이 c1 5/5, c2 9/10로 졸업 기준을 이미 충족** → 커리큘럼 생략하고 원본에서 바로 학습
+- **README 제약 준수**: `healthy_z_range`를 스켈레톤 원본 `(0.5,10.0)`으로 원복하고 z≥0.9 요구는 `custom_terminated`로 이전 (`custom_reward`가 `original_reward`를 쓰지 않아 동작 동등)
+
+### 지표 확인
+- TensorBoard: `logs/` 최신 PPO 런
+- 핵심 판독법: `ep_rew_mean ≈ ep_len_mean`이면 정지류 국소최적
+
+### 파일 구성
+- `custom_walker2d.py` — 환경 wrapper + 보상 (v9)
+- `learning.py` — 학습 (`--resume`, `--xml`)
+- `surgery.py` — 관측 차원 변경 시 가중치/정규화 통계 이식 (`--graft_vecnorm`)
+- `eval_ckpt.py` — 헤드리스 평가 (h≥0.2 범프만 집계, 범프 개수 자동)
+- `render.py` — 렌더링 (`--xml`, VecNormalize 자동 로드)
+- `asset/custom_walker2d_bumps{,_c1,_c2}.xml` — 신맵 (c1: bump2/7/8 = 0.3/0.3/0.5, c2: 0.4/0.4/0.75, 원본: 0.5/0.5/1.0)
+- `asset/custom_walker2d_bumps_oldmap_c{1,2}.xml` — 구맵 커리큘럼 백업
+- `checkpoints/bump_challenge_oldmap/` — 구맵 v8.3 정책 (수술 소스: `walker_model_32200000_steps.zip`)
+- 구맵 원본 XML/코드 전체: git 태그 `v8.3-oldmap-final`
+
+## (구) 새 세션 이어가기 가이드 (2026-08-12 01:45 기준, v8.3 구맵)
 
 ### 현재 상태
 - **c1 졸업 (22.2M)**: c2 제로샷 bump2 10/10, bump3 9/10
@@ -229,7 +279,28 @@ c1에서 범프2는 일부 통과하나 하강 착지 후 자세 붕괴로 범�
 
 ---
 
-## 현재 보상 구조 (v8)
+## 현재 보상 구조 (v9)
+
+```
+reward = 1.0                                  # healthy
+       + 60 * dx * height_factor              # 전진 (높이 게이트, 후진 벌점)
+       - 0.3 * z_vel²                         # 미통과 h>=0.2 범프 근처 / h>=0.4 통과 직후 2m는 해제
+       - 0.3 * torso_angle²
+       - 0.05 * torso_ang_vel²
+       - 1.0 * max(0, 1.1 - torso_z)          # 낮은 자세 벌점
+       + 0.2 * min(|a_ankle_R|, |a_ankle_L|)  # 큰 범프 근처 양발 push-off
+       + 0.3 * tanh(max(0, -thigh_vel_r * thigh_vel_l))  # 교대 스윙
+       + 0.5 * exp(-2*L2(왼다리_now, 오른다리_반주기전))   # 위상 대칭 (큰 범프 근처 해제)
+       + 10 (1회) # 도약: 접근 구간에서 z_vel > min(1.5, 3*rel_height)   (h>=0.2만)
+       + 15 (1회) # 몸 띄우기: torso_z > height + 1.05                   (h>=0.2만)
+       + 15 (1회) # 범프 전면(x > front_x - 0.4) 도달                    (h>=0.2만)
+       + 50 (1회) # 범프 통과 (x > back_x), 잔범프는 +10
+       + 25/50 (1회) # 마지막 범프 +3m / +5m 지점
+종료: 기본 termination + z<0.9(custom_terminated) + 500스텝 무진전
+관측: base 18 + 다음 2범프 × [거리/10, 높이, 반폭] + (torso_z-1.25) = 25차원
+```
+
+## (구) 보상 구조 (v8, 구맵 3범프)
 
 ```
 reward = 1.0                                  # healthy

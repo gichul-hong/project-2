@@ -12,15 +12,8 @@ args = p.parse_args()
 
 xml = os.path.abspath(args.xml) if args.xml else None
 raw = CustomEnvWrapper(bump_challenge=True, xml_file=xml)
-vec_path = args.model.replace(".zip", "").replace("walker_model_", "walker_model_vecnormalize_") + ".pkl"
-if os.path.exists(vec_path):
-    env = VecNormalize.load(vec_path, DummyVecEnv([lambda: raw]))
-    env.training = False
-else:
-    # 수술본 등 통계가 없는 경우: 롤아웃 중 통계를 갱신하며 평가 (참고용)
-    print(f"[warn] {vec_path} 없음 -> 새 VecNormalize (통계 미학습, 성능 저평가 가능)")
-    env = VecNormalize(DummyVecEnv([lambda: raw]), norm_obs=True, norm_reward=False, clip_obs=10.0)
-env.norm_reward = False
+# v9.1: 관측 정규화가 환경에 내장되어 VecNormalize 불필요 (채점기와 동일 경로)
+env = DummyVecEnv([lambda: raw])
 model = PPO.load(args.model, env=env, device="cpu")
 
 big_idx = [i for i, b in enumerate(raw.bumps) if b["big"]]

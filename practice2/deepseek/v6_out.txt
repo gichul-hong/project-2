@@ -1,0 +1,12 @@
+Using cpu device
+Logging to ./logs/PPO_13
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 9.28     |
+|    ep_rew_mean     | -31.3    |
+| time/              |          |
+|    fps             | 961      |
+|    iterations      | 1        |
+|    time_elapsed    | 8        |
+|    total_timesteps | 8192     |
+---------------------------------

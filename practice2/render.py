@@ -51,6 +51,7 @@ else:
 video_writer = None
 recording = False
 frames = []
+step_count = 0
 
 if args.record:
     print("Recording enabled. Press 'R' to start/stop recording, 'Q' to quit.")
@@ -68,7 +69,9 @@ while True:
     else:
         obs, reward, terminated, truncated, _ = env.step(action)
 
-    if args.record:
+    # 녹화 중이 아니면 3스텝에 1번만 렌더링/표시 (미리보기용) -> FPS 향상
+    step_count += 1
+    if args.record and (recording or step_count % 3 == 0):
         frame = raw_env.render()
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 

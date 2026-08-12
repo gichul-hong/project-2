@@ -3,7 +3,19 @@
 > `practice2/custom_walker2d.py` + `learning.py` (PPO, SB3) 보상 설계 수정 이력.
 > 새로운 문제/수정이 생길 때마다 이 문서에 버전을 추가한다.
 
-## 새 세션 이어가기 가이드 (2026-08-12 12:40 기준, v9)
+## ⇒ 지금 할 일은 `PLAN_V10.md`를 보라 (2026-08-12 14:00 기준)
+
+공식 챌린지 코스(장애물 50개, md5 `338efa83…`)가 확정되어 작업이 v10으로 넘어갔다.
+새 세션은 **`PLAN_V10.md`만 읽고 바로 학습을 시작할 수 있다.** 요약:
+
+- 채점 = `evaluate.py`가 **20초(1000스텝) 동안 도달한 최대 x**를 재는 결정적 1회 주행. 완주(101.9m)는 불가 → 거리 경쟁
+- 채점기는 `PPO.load(zip)`만 하고 **VecNormalize pkl을 읽지 않는다** → 정규화를 `custom_observation`에 상수로 내장 (v9.1)
+  - `OBS_NORM_MEAN/VAR`는 체크포인트와 한 쌍. 학습 중 변경 금지
+- 제출 베이스라인: `checkpoints/bump_challenge_v9_8bumps_final/walker_model_2600000_steps.zip` → **31.77 m**
+- 병목: x≈26.4의 0.5→1.0m 계단 2단에서 **8.6초 정체**. 그 전까지는 2.7~3.5 m/s로 순조. 정체만 풀면 55m+ 기대
+- 아래 v9 섹션은 그 직전 단계(8범프 맵)의 이력이다
+
+## v9 상태 (2026-08-12 12:40, 구 8범프 맵 — 완료)
 
 ### 현재 상태 (v9 = 새 맵 8범프)
 - `asset/custom_walker2d_bumps.xml`이 **8범프 새 맵**으로 교체됨 (잔범프 6개 + bump2 h=0.5 + bump7 h=0.5 / bump8 h=1.0 계단)
@@ -321,17 +333,20 @@ reward = 1.0                                  # healthy
 - PPO, MlpPolicy [256,256]/[256,256], `log_std_init=-1.0`
 - `lr=3e-4, n_steps=2048, batch_size=256, gamma=0.995, target_kl=0.03`
 - `ent_coef`: 신규 0.005 / resume 0.01
-- N_ENVS=10, SubprocVecEnv + VecMonitor + VecNormalize(norm_obs, clip 10)
-- 체크포인트 200k 스텝마다 (`save_freq=20000 × 10 envs`), VecNormalize 포함 저장
+- N_ENVS=10, SubprocVecEnv + VecMonitor (**v9.1부터 VecNormalize 미사용** — 정규화는 환경에 내장)
+- 체크포인트 200k 스텝마다 (`save_freq=20000 × 10 envs`), **zip만 저장 (pkl 없음)**
 
-## 렌더링
+## 렌더링 / 평가
 
-```bash
+```powershell
 cd practice2
-python render.py --model checkpoints/bump_challenge/walker_model_<steps>_steps --bump_challenge
+$py = "C:\Users\삼성\.conda\envs\pjt-2\python.exe"
+& $py -u evaluate.py --model checkpoints/bump_challenge/walker_model_<steps>_steps.zip   # 공식 점수
+& $py -u diag_run.py --model checkpoints/bump_challenge/walker_model_<steps>_steps.zip   # 정체 지점 진단
+& $py render.py --model checkpoints/bump_challenge/walker_model_<steps>_steps --bump_challenge
 ```
-- 학습과 같은 플래그 필수 (`--bump_practice`로 열면 관측 차원 불일치 21≠22)
-- VecNormalize pkl은 자동 로드
+- 학습과 같은 플래그 필수 (`--bump_practice`로 열면 관측 차원이 달라짐)
+- VecNormalize pkl은 더 이상 사용하지 않는다 (있으면 이중 정규화가 되므로 로드 금지)
 
 ## 교훈
 
@@ -340,3 +355,9 @@ python render.py --model checkpoints/bump_challenge/walker_model_<steps>_steps -
 3. 보상 스케일은 dt를 실측해서 계산할 것 (frame_skip 때문에 직관과 다름)
 4. 벌점(z_vel 등)이 과제에 필요한 동작(점프)과 충돌하지 않는지 확인
 5. 1회성 x-단조 마일스톤은 안전한 shaping, 매 스텝 상태 기반 shaping은 착취 위험
+6. 관측 차원을 바꿔도 **첫 레이어 열 매핑 수술 + 정규화 통계 이식**으로 기존 정책을 거의 그대로 이식할 수 있다.
+   통계 이식을 빠뜨리면 정책이 즉시 붕괴하므로(len 24) 가중치만 옮기는 것은 무의미하다 (v9 Phase 4)
+7. 채점 파이프라인을 먼저 읽을 것. `evaluate.py`는 pkl을 로드하지 않아 VecNormalize에 의존한 정책은
+   그대로 제출하면 0점이 된다. 학습 편의(러닝 정규화)와 제출 요건(자립형 zip)은 다를 수 있다
+8. 평가 지표를 보상과 일치시킬 것. 점수가 "고정 시간 내 거리"라면 매 스텝 healthy 보너스는
+   정체(버티기)를 보상하는 셈이 된다 (v10 Phase B의 출발점)

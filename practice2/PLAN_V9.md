@@ -156,11 +156,11 @@ v8.3 구조 유지하되 아래만 변경:
 - [x] Phase 1: 범프 자동 파싱 (`_parse_bumps`, front_x/back_x/big/base_height 산출)
 - [x] Phase 2: 관측 25차원 (실측: `25`차원)
 - [x] Phase 3: 보상 v9
-- [ ] Phase 4: surgery.py + 육안 검증 (성공/실패: `______`)
-- [ ] Phase 5: 커리큘럼 XML + c1 학습 시작
-- [ ] c1 졸업 (스텝: `__M`)
-- [ ] c2 졸업 (스텝: `__M`)
-- [ ] 원본 bump8 8/10+ 달성
+- [x] Phase 4: surgery.py + 검증 (성공/실패: `성공` — 가중치 + VecNormalize 통계까지 열 매핑 이식. zero-shot c1 bump8 5/5, c2 9/10, 원본 2~5/10)
+- [x] Phase 5: 커리큘럼 XML(c1/c2 신맵 생성, 구맵은 `_oldmap_c1/c2`로 백업) + **c1/c2는 zero-shot 졸업 기준 충족으로 스킵, 원본 XML에서 학습 시작**
+- [x] c1 졸업 (스텝: `0M` zero-shot 5/5)
+- [x] c2 졸업 (스텝: `0M` zero-shot 9/10)
+- [ ] 원본 bump8 8/10+ 달성 (진행 중)
 - [ ] Phase 6: TRAINING_HISTORY.md v9 기록
 
 ## 리스크 / fallback
@@ -172,3 +172,11 @@ v8.3 구조 유지하되 아래만 변경:
 | c1 bump2(0.3)에서도 정체 | bump2만 0.2로 낮춘 c0 추가 |
 | 잔범프에서 발 걸려 넘어짐 반복 | 위상 대칭 가중치 0.5→0.8 상향 검토 (그 전에 렌더링으로 원인 확인) |
 | VecNormalize 새로 시작에 따른 초기 저성능 | 정상. 2M 스텝까지는 판단 유보 |
+
+## README 제약 준수 메모
+
+- `README.md`: "Do not modify the XML file path or environment parameters in `__init__`"
+- 이전 세션에서 들어간 `healthy_z_range=(0.9, 10.0)`(원본 `(0.5, 10.0)`)은 위반이므로 원복하고, 무릎 보행 차단은 `custom_terminated`의 `obs[1] < MIN_TORSO_Z(0.9)`로 이전 (동작 동등: custom_reward가 original_reward를 쓰지 않아 healthy_reward 영향 없음)
+- `frame_skip=10`, `exclude_current_positions_from_observation=False`, XML 기본 경로는 스켈레톤과 동일
+- `xml_file` 인자는 기본값 `None`이며 이때 기본 XML 경로를 그대로 사용 (커리큘럼 학습 전용, 테스트 기본 설정에 영향 없음)
+- 변경은 Observation / Reward / Termination 및 그 보조 로직(`_parse_bumps`, 관측 차원 갱신)에 한정

@@ -1,0 +1,5 @@
+﻿walker_model_3600000_steps.zip |   점수      44.45 m |   평균 속도  2.22 m/s |   생존 스텝  1000 / 1000
+walker_model_3800000_steps.zip |   점수      48.53 m |   평균 속도  2.43 m/s |   생존 스텝  1000 / 1000
+walker_model_4000000_steps.zip |   점수      14.64 m |   평균 속도  3.15 m/s |   생존 스텝  232 / 1000
+walker_model_4200000_steps.zip |   점수      48.58 m |   평균 속도  2.43 m/s |   생존 스텝  1000 / 1000
+walker_model_4400000_steps.zip |   점수      28.04 m |   평균 속도  2.58 m/s |   생존 스텝  543 / 1000

@@ -5,7 +5,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 # TODO: Modify if necessary
 # Adjust based on available CPU cores (Windows CMD: wmic cpu get NumberOfLogicalProcessors)
-N_ENVS = 4
+N_ENVS = 8
 
 def make_env(bump_practice = False, bump_challenge=False):
     def _init():
